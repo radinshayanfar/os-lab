@@ -7,7 +7,7 @@ if [[ $# -ne 2 ]]; then
 fi
 
 # Checking whether arguments are numeric
-re='^[0-9]+$'
+re='^[+-]?[0-9]+$'
 for i in "${@}"; do
 	if [[ ! $i =~ $re ]]; then
 		echo "\"$i\" is not a numeric value"
