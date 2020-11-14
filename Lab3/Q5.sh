@@ -41,3 +41,4 @@ texts=("$txt1" "$txt2" "$txt3")
 read -p "Enter a number between 1-3: " num
 ((num--))
 echo "${texts[num]}"
+
