@@ -83,7 +83,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("==== PRESS CTRL+z TO VIEW ONLINE CLIENTS ====\n");
     /*=socket on listening mode=*/
     listen(sockfd, BACKLOG);
     printf("waiting for clients......\n");
