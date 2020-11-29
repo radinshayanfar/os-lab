@@ -1,0 +1,70 @@
+==== Starting Server ====
+PORT NO.:	3232
+IP ADDRESS:	0.0.0.0
+waiting for clients......
+** 4: Radin: JOINED CHAT **
+
+** 5: Tara: JOINED CHAT **
+
+** 6: Kimia: JOINED CHAT **
+
+** 7: Roozbeh: JOINED CHAT **
+
+** 4: Radin: joined group number 2. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 6: Kimia: joined group number 2. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+Radin: /send 2 hello kimia
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 7: Roozbeh: joined group number 3. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 5: Tara: joined group number 3. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 4: Radin: joined group number 3. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+Roozbeh: /send 3 a message from roozbeh to radin and tara
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 4: Radin: left group number 3. **
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+Roozbeh: /send 3 a message only to tara
+
+Current online users:
+4: Radin:	5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 4: Radin: left chat. Deleting from lists. **
+
+Current online users:
+5: Tara:	6: Kimia:	7: Roozbeh:	
+
+** 6: Kimia: left chat. Deleting from lists. **
+
+Current online users:
+5: Tara:	7: Roozbeh:	
+
+^C
+==== SHUTTING DOWN SERVER ====
+3 clients closed
