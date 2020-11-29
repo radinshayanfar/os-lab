@@ -1,8 +1,3 @@
-/* to compile me in Linux, type:   gcc -o server t1.c -lpthread */
-/* t1.c - code for  server program that uses TCP/IP */
-
-/****SERVER CODE****/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -16,33 +11,35 @@
 
 #define BACKLOG 100    // connections in the queue
 #define MAXDATALEN 256 //max size of messages to be sent
+#define MAXUSER 20     //max size of messages to be sent
+#define MAXGROUP 10    //max size of messages to be sent
 #define PORT 3232      //default port number
 
-struct Node
+typedef struct
 {
     int port;
     char username[10];
-    struct Node *next;
-};
+} User;
 
-typedef struct Node *ptrtonode;
-typedef ptrtonode head;
-typedef ptrtonode addr;
-
-void sendtoall(char *, int new_fd);            /*send chat msgs to all connected clients*/
-void Quitall();                                /*send msg to all if server shuts down*/
-head MakeEmpty(head h);                        /*clearing list*/
-void Delete(int port, head h);                 /*delete client values on client exit*/
-void Insert(int port, char *, head h, addr a); /*inserting new client */
-void DeleteList(head h);                       /*clearing list*/
-void Display(const head h);                    /*list all clients connected*/
+void sendtoall(char *, int new_fd); /*send chat msgs to all connected clients*/
+void Quitall();                     /*send msg to all if server shuts down*/
+// void Delete(int port, head h);                 /*delete client values on client exit*/
+void insert_list(int port, char *username, User *list, int *tail); /*inserting new client */
+int search_list(int port, User *list, int tail);
+void delete_list(int port, User *list, int *tail);
+void delete_all(User *list, int *tail);
+void display_list(const User *list, int tail); /*list all clients connected*/
 void *Quitproc();                              /*signal handler*/
 void *server(void *arg);                       /*server instance for every connected client*/
 void zzz();
+int next_space(char *str);
 
 char username[10];
 int sf2;
-head h;
+User users[MAXUSER] = {0};
+int user_tail = 0;
+User groups[MAXGROUP][MAXUSER] = {0};
+int group_tail[MAXUSER] = {0};
 char buffer[MAXDATALEN];
 
 int main(int argc, char *argv[])
@@ -55,7 +52,6 @@ int main(int argc, char *argv[])
     int cli_size, z;
     pthread_t thr;
     int yes = 1;
-    addr a;
 
     printf("==== Starting Server ====\n");
     if (argc == 2)
@@ -63,8 +59,6 @@ int main(int argc, char *argv[])
     else
         portnum = PORT; //if port number not given as argument then using default port
     printf("PORT NO.:\t%d\n", portnum);
-
-    h = MakeEmpty(NULL); //frees the list
 
     /*=set info of server =*/
     server_addr.sin_family = AF_INET;                /* set family to Internet     */
@@ -106,7 +100,6 @@ int main(int argc, char *argv[])
     {
         cli_size = sizeof(struct sockaddr_in);                               //cli_size necessary as an argument for pthread_create
         new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &cli_size); //accepting connection from client
-        a = h;
 
         /* getting username */
         bzero(username, 10);
@@ -115,10 +108,9 @@ int main(int argc, char *argv[])
         username[strlen(username) - 1] = ':';
 
         printf("** %d: %s JOINED CHAT **\n", new_fd, username);
-        Insert(new_fd, username, h, a); //inserting newly accepted client socked fd in list
-        a = a->next;
+        insert_list(new_fd, username, users, &user_tail); //inserting newly accepted client socked fd in list
 
-        struct Node args; //struct to pass multiple arguments to server function
+        User args; //struct to pass multiple arguments to server function
         args.port = new_fd;
         strcpy(args.username, username);
 
@@ -126,15 +118,14 @@ int main(int argc, char *argv[])
         pthread_detach(thr);
     }
 
-    DeleteList(h); //deleting all clients when server closes
+    delete_all(users, &user_tail);
     close(sockfd);
-
 }
 
 /* Each client thread */
 void *server(void *arguments)
 {
-    struct Node *args = arguments;
+    User *args = arguments;
 
     char buffer[MAXDATALEN], ubuf[50], uname[10]; /* buffer for string the server sends */
     char *strp;
@@ -144,7 +135,6 @@ void *server(void *arguments)
 
     ts_fd = args->port; /*socket variable passed as arg*/
     strcpy(uname, args->username);
-    addr a;
 
     // Handling messages
     while (1)
@@ -157,120 +147,70 @@ void *server(void *arguments)
         if (!y || strncmp(buffer, "/quit", 5) == 0)
         {
             printf("%d ->%s left chat deleting from list\n", ts_fd, uname);
-            sprintf(buffer, "%s has left the chat\n", uname);
 
-            addr a = h;
-            do
+            delete_list(ts_fd, users, &user_tail);
+            for (int i = 0; i < MAXGROUP; i++)
             {
-                a = a->next;
-                sfd = a->port;
-                if (sfd == ts_fd)
-                    Delete(sfd, h);
-            } while (a->next != NULL);
+                delete_list(ts_fd, groups[i], &group_tail[i]);
+            }
 
-            Display(h);
+            display_list(users, user_tail);
 
             close(ts_fd);
             free(msg);
 
             break;
         }
-
-        /* Send to all */
-        printf("%s %s\n", uname, buffer);
-        strcpy(msg, uname);
-        x = strlen(msg);
-        strp = msg;
-        strp += x;
-        strcat(strp, buffer);
-        msglen = strlen(msg);
-
-        addr a = h;
-        do
+        else if (strncmp(buffer, "/join", 5) == 0)
         {
-            a = a->next;
-            sfd = a->port;
-            if (sfd != ts_fd)
-                send(sfd, msg, msglen, 0);
+            char *group_id_str = malloc(sizeof(MAXDATALEN));
+            strcpy(group_id_str, buffer + 6);
+            int group_id = atoi(group_id_str);
+            printf("%d: %s joined group number %d.\n", ts_fd, uname, group_id);
 
-        } while (a->next != NULL);
+            insert_list(ts_fd, uname, groups[group_id], &group_tail[group_id]);
+        }
+        else if (strncmp(buffer, "/leave", 6) == 0)
+        {
+            char *group_id_str = malloc(sizeof(MAXDATALEN));
+            strcpy(group_id_str, buffer + 7);
+            int group_id = atoi(group_id_str);
+            printf("%d: %s left group number %d.\n", ts_fd, uname, group_id);
 
-        Display(h);
-        bzero(msg, MAXDATALEN);
+            delete_list(ts_fd, groups[group_id], &group_tail[group_id]);
+        }
+        else if (strncmp(buffer, "/send", 5) == 0)
+        {
+            int space_pos = next_space(buffer + 6);
+            char *group_id_str = malloc(sizeof(MAXDATALEN));
+            strncpy(group_id_str, buffer + 6, space_pos);
+            int group_id = atoi(group_id_str);
+            printf("\nGROUP ID IS: %d\n", group_id);
 
+            if (search_list(ts_fd, groups[group_id], group_tail[group_id]) == -1) {
+                continue;
+            }
+
+            /* Send to all */
+            printf("%s %s\n", uname, buffer);
+            strcpy(msg, uname);
+            x = strlen(msg);
+            strp = msg;
+            strp += x;
+            strcat(strp, buffer + 7 + space_pos);
+            msglen = strlen(msg);
+
+            for (int i = 0; i < group_tail[group_id]; i++)
+            {
+                if (groups[group_id][i].port != ts_fd)
+                    send(groups[group_id][i].port, msg, msglen, 0);
+            }
+
+            display_list(users, user_tail);
+            bzero(msg, MAXDATALEN);
+        }
     }
     return 0;
-
-}
-
-/*=====empties and deletes the list======*/
-head MakeEmpty(head h)
-{
-    if (h != NULL)
-        DeleteList(h);
-    h = malloc(sizeof(struct Node));
-    if (h == NULL)
-        printf("Out of memory!");
-    h->next = NULL;
-    return h;
-}
-/*======delete list=======*/
-void DeleteList(head h)
-{
-    addr a, Tmp;
-    a = h->next;
-    h->next = NULL;
-    while (a != NULL)
-    {
-        Tmp = a->next;
-        free(a);
-        a = Tmp;
-    }
-}
-/*===============inserting new clients to list==========*/
-void Insert(int port, char *username, head h, addr a)
-{
-    addr TmpCell;
-    TmpCell = malloc(sizeof(struct Node));
-    if (TmpCell == NULL)
-        printf("Out of space!!!");
-    TmpCell->port = port;
-    strcpy(TmpCell->username, username);
-    TmpCell->next = a->next;
-    a->next = TmpCell;
-}
-
-/*========displaying all clients in list==================*/
-void Display(const head h)
-{
-    addr a = h;
-    if (h->next == NULL)
-        printf("NO ONLINE  CLIENTS\n");
-
-    else
-    {
-        do
-        {
-            a = a->next;
-            printf("%d->%s \t", a->port, a->username);
-        } while (a->next != NULL);
-        printf("\n");
-    }
-}
-
-/*===========client deleted from list if client quits================*/
-void Delete(int port, head h)
-{
-    addr a, TmpCell;
-    a = h;
-    while (a->next != NULL && a->next->port != port)
-        a = a->next;
-    if (a->next != NULL)
-    {
-        TmpCell = a->next;
-        a->next = TmpCell->next;
-        free(TmpCell);
-    }
 }
 
 /*======handling signals==========*/
@@ -284,32 +224,89 @@ void *Quitproc()
 /*===============notifying server shutdown===========*/
 void Quitall()
 {
-    int sfd;
-    addr a = h;
-    int i = 0;
-    if (h->next == NULL)
+    if (user_tail == 0)
     {
         printf("......BYE.....\nno clients \n\n");
         exit(0);
     }
     else
     {
-
-        do
+        for (int i = 0; i < user_tail; i++)
         {
-            i++;
-            a = a->next;
-            sfd = a->port;
-            send(sfd, "server down", 13, 0);
-        } while (a->next != NULL);
-        printf("%d clients closed\n\n", i);
+            send(users[i].port, "/server_down", 14, 0);
+        }
+
+        printf("%d clients closed\n\n", user_tail + 1);
     }
 }
 
 void zzz()
 {
     printf("\rDISPLAYING ONLINE CLIENTS\n\n");
-    Display(h);
+    display_list(users, user_tail);
 }
 
-/*=========================================================================================================*/
+void insert_list(int port, char *username, User *list, int *tail)
+{
+    if (search_list(port, list, *tail) != -1)
+    {
+        return;
+    }
+    User *temp;
+    temp = malloc(sizeof(User));
+    if (temp == NULL)
+        printf("Out of space!!!");
+    temp->port = port;
+    strcpy(temp->username, username);
+    list[(*tail)++] = *temp;
+}
+
+int search_list(int port, User *list, int tail)
+{
+    for (int i = 0; i < tail; i++)
+    {
+        if (list[i].port == port)
+            return i;
+    }
+    return -1;
+}
+
+void delete_list(int port, User *list, int *tail)
+{
+    int ptr = search_list(port, list, *tail);
+    if (ptr == -1)
+    {
+        return;
+    }
+
+    for (int i = ptr; i < *tail - 1; i++)
+    {
+        list[i] = list[i + 1];
+    }
+    (*tail)--;
+}
+
+void display_list(const User *list, int tail)
+{
+    for (int i = 0; i < tail; i++)
+    {
+        printf("%d: %s\t", list[i].port, list[i].username);
+    }
+    printf("\n");
+}
+
+void delete_all(User *list, int *tail)
+{
+    *tail = 0;
+}
+
+int next_space(char *str) {
+    int i = 0;
+    while (str[i] != '\0') {
+        if (str[i] == ' ') {
+            return i;
+        }
+        i++;
+    }
+    return -1;
+}
