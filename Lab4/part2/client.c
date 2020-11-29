@@ -5,14 +5,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <pthread.h>
 #include <signal.h>
 
-#define PORT 3232 /* default port number */
+#define PORT 3232              // default port number
 #define MAXDATALEN 256
 
 int sockfd;
-int n, x;                     /*variables for socket*/
+int n;                        /*variables for socket*/
 struct sockaddr_in serv_addr; /* structure to hold server's address */
 char buffer[MAXDATALEN];
 char buf[10];
@@ -21,49 +22,44 @@ void *quit();
 void *chat_write(int);
 void *chat_read(int);
 
-/***************main starts************/
-
 int main(int argc, char *argv[])
 {
 
     pthread_t thr1, thr2; /* variable to hold thread ID */
 
-    if (argc != 2)
+    if (argc != 4)
     {
-        printf("help:u need to put server ip\n");
-        exit(0);
+        printf("Please enter server ip, port and your username.\n");
+        exit(1);
     }
 
-    /*=============socket creating==============*/
+    // socket creating
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
         printf("client socket error\n");
     else
-        printf("socket\t\tcreated\n");
+        printf("socket created\n");
 
-    /*===============set info===================*/
+    // set info
     bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
     serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
 
-    /*=========for username=====================*/
+    // username
     bzero(buf, 10);
-    printf("\nENTER YOUR NAME: ");
-    fgets(buf, 10, stdin);
-    __fpurge(stdin);
-    buf[strlen(buf) - 1] = ':';
+    strcpy(buf, argv[3]);
+    buf[strlen(buf)] = ':';
 
-    /*=============client connect to server============*/
+    // client connect to server
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
     {
         printf("client connect error\n");
         exit(0);
     }
     else
-        printf("%s connected to server\n", buf);
+        printf("\rYOU JOINED AS %s\n", buf);
 
-    printf("\rYOU JOINED AS- %s", buffer - 1);
     send(sockfd, buf, strlen(buf), 0);
 
     pthread_create(&thr2, NULL, (void *)chat_write, (void *)sockfd); //thread for writing
@@ -76,7 +72,6 @@ int main(int argc, char *argv[])
 
 }
 
-/*======reading continously from socket=============*/
 void *chat_read(int sockfd)
 {
     signal(SIGINT,(void *)quit);
@@ -85,19 +80,18 @@ void *chat_read(int sockfd)
         n = recv(sockfd, buffer, MAXDATALEN - 1, 0);
         if (n == 0)
         {
-            printf("\nSERVER HAS BEEN SHUTDOWN\n");
+            printf("\n==== SERVER HAS BEEN SHUTDOWN ====\n");
             exit(0);
         }
 
         if (n > 0)
         {
-            printf("\n%s ", buffer);
+            printf("-> %s", buffer);
             bzero(buffer, MAXDATALEN);
         }
     }
 }
 
-/*======writing continously to socket=============*/
 void *chat_write(int sockfd)
 {
     while (1)
@@ -118,11 +112,11 @@ void *chat_write(int sockfd)
             exit(0);
 
         bzero(buffer, MAXDATALEN);
-    } //while ends
+    }
 }
 
-/*======handling signals==========*/
+// handling SIGINT
 void *quit()
-{ //handling ctrl+c
+{
     printf("\nType '/quit' TO EXIT\n");
 }

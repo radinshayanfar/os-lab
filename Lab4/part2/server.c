@@ -21,21 +21,17 @@ typedef struct
     char username[10];
 } User;
 
-void sendtoall(char *, int new_fd); /*send chat msgs to all connected clients*/
-void Quitall();                     /*send msg to all if server shuts down*/
-// void Delete(int port, head h);                 /*delete client values on client exit*/
+void *server(void *arg);                                           /*server instance for every connected client*/
 void insert_list(int port, char *username, User *list, int *tail); /*inserting new client */
 int search_list(int port, User *list, int tail);
 void delete_list(int port, User *list, int *tail);
 void delete_all(User *list, int *tail);
 void display_list(const User *list, int tail); /*list all clients connected*/
-void *Quitproc();                              /*signal handler*/
-void *server(void *arg);                       /*server instance for every connected client*/
-void zzz();
+void notify_shutdown();                        /*send msg to all if server shuts down*/
+void *quit_signal();                           /*signal handler*/
 int next_space(char *str);
 
 char username[10];
-int sf2;
 User users[MAXUSER] = {0};
 int user_tail = 0;
 User groups[MAXGROUP][MAXUSER] = {0};
@@ -92,8 +88,7 @@ int main(int argc, char *argv[])
     listen(sockfd, BACKLOG);
     printf("waiting for clients......\n");
 
-    signal(SIGINT, (void *)Quitproc); //signal handler
-    signal(SIGTSTP, zzz);             //signal handler
+    signal(SIGINT, (void *)quit_signal); //signal handler
 
     // Accepting new clients
     while (1)
@@ -107,7 +102,7 @@ int main(int argc, char *argv[])
             ;
         username[strlen(username) - 1] = ':';
 
-        printf("** %d: %s JOINED CHAT **\n", new_fd, username);
+        printf("** %d: %s JOINED CHAT **\n\n", new_fd, username);
         insert_list(new_fd, username, users, &user_tail); //inserting newly accepted client socked fd in list
 
         User args; //struct to pass multiple arguments to server function
@@ -127,36 +122,35 @@ void *server(void *arguments)
 {
     User *args = arguments;
 
-    char buffer[MAXDATALEN], ubuf[50], uname[10]; /* buffer for string the server sends */
+    char buffer[MAXDATALEN], uname[10]; /* buffer for string the server sends */
     char *strp;
     char *msg = (char *)malloc(MAXDATALEN);
-    int ts_fd, x, y;
-    int sfd, msglen;
+    int my_port, x, y;
+    int msglen;
 
-    ts_fd = args->port; /*socket variable passed as arg*/
+    my_port = args->port; /*socket variable passed as arg*/
     strcpy(uname, args->username);
 
     // Handling messages
     while (1)
     {
-
         bzero(buffer, 256);
-        y = recv(ts_fd, buffer, MAXDATALEN, 0);
+        y = recv(my_port, buffer, MAXDATALEN, 0);
 
         /* Client quits */
         if (!y || strncmp(buffer, "/quit", 5) == 0)
         {
-            printf("%d ->%s left chat deleting from list\n", ts_fd, uname);
+            printf("** %d: %s left chat. Deleting from lists. **\n\n", my_port, uname);
 
-            delete_list(ts_fd, users, &user_tail);
+            delete_list(my_port, users, &user_tail);
             for (int i = 0; i < MAXGROUP; i++)
             {
-                delete_list(ts_fd, groups[i], &group_tail[i]);
+                delete_list(my_port, groups[i], &group_tail[i]);
             }
 
             display_list(users, user_tail);
 
-            close(ts_fd);
+            close(my_port);
             free(msg);
 
             break;
@@ -166,18 +160,18 @@ void *server(void *arguments)
             char *group_id_str = malloc(sizeof(MAXDATALEN));
             strcpy(group_id_str, buffer + 6);
             int group_id = atoi(group_id_str);
-            printf("%d: %s joined group number %d.\n", ts_fd, uname, group_id);
+            printf("** %d: %s joined group number %d. **\n\n", my_port, uname, group_id);
 
-            insert_list(ts_fd, uname, groups[group_id], &group_tail[group_id]);
+            insert_list(my_port, uname, groups[group_id], &group_tail[group_id]);
         }
         else if (strncmp(buffer, "/leave", 6) == 0)
         {
             char *group_id_str = malloc(sizeof(MAXDATALEN));
             strcpy(group_id_str, buffer + 7);
             int group_id = atoi(group_id_str);
-            printf("%d: %s left group number %d.\n", ts_fd, uname, group_id);
+            printf("** %d: %s left group number %d. **\n\n", my_port, uname, group_id);
 
-            delete_list(ts_fd, groups[group_id], &group_tail[group_id]);
+            delete_list(my_port, groups[group_id], &group_tail[group_id]);
         }
         else if (strncmp(buffer, "/send", 5) == 0)
         {
@@ -185,13 +179,12 @@ void *server(void *arguments)
             char *group_id_str = malloc(sizeof(MAXDATALEN));
             strncpy(group_id_str, buffer + 6, space_pos);
             int group_id = atoi(group_id_str);
-            printf("\nGROUP ID IS: %d\n", group_id);
 
-            if (search_list(ts_fd, groups[group_id], group_tail[group_id]) == -1) {
+            if (search_list(my_port, groups[group_id], group_tail[group_id]) == -1)
+            {
                 continue;
             }
 
-            /* Send to all */
             printf("%s %s\n", uname, buffer);
             strcpy(msg, uname);
             x = strlen(msg);
@@ -202,31 +195,29 @@ void *server(void *arguments)
 
             for (int i = 0; i < group_tail[group_id]; i++)
             {
-                if (groups[group_id][i].port != ts_fd)
+                if (groups[group_id][i].port != my_port)
                     send(groups[group_id][i].port, msg, msglen, 0);
             }
 
-            display_list(users, user_tail);
             bzero(msg, MAXDATALEN);
         }
+        display_list(users, user_tail);
     }
     return 0;
 }
 
-/*======handling signals==========*/
-void *Quitproc()
+void *quit_signal()
 {
-    printf("\n\nSERVER SHUTDOWN\n");
-    Quitall();
+    printf("\n==== SHUTTING DOWN SERVER ====\n");
+    notify_shutdown();
     exit(0);
 }
 
-/*===============notifying server shutdown===========*/
-void Quitall()
+void notify_shutdown()
 {
     if (user_tail == 0)
     {
-        printf("......BYE.....\nno clients \n\n");
+        printf("No clients\n");
         exit(0);
     }
     else
@@ -236,14 +227,8 @@ void Quitall()
             send(users[i].port, "/server_down", 14, 0);
         }
 
-        printf("%d clients closed\n\n", user_tail + 1);
+        printf("%d clients closed\n", user_tail + 1);
     }
-}
-
-void zzz()
-{
-    printf("\rDISPLAYING ONLINE CLIENTS\n\n");
-    display_list(users, user_tail);
 }
 
 void insert_list(int port, char *username, User *list, int *tail)
@@ -255,7 +240,7 @@ void insert_list(int port, char *username, User *list, int *tail)
     User *temp;
     temp = malloc(sizeof(User));
     if (temp == NULL)
-        printf("Out of space!!!");
+        printf("Out of space!");
     temp->port = port;
     strcpy(temp->username, username);
     list[(*tail)++] = *temp;
@@ -288,11 +273,18 @@ void delete_list(int port, User *list, int *tail)
 
 void display_list(const User *list, int tail)
 {
+    printf("Current online users:\n");
+    if (tail == 0)
+    {
+        printf("No one is online\n");
+        return;
+    }
+
     for (int i = 0; i < tail; i++)
     {
         printf("%d: %s\t", list[i].port, list[i].username);
     }
-    printf("\n");
+    printf("\n\n");
 }
 
 void delete_all(User *list, int *tail)
@@ -300,10 +292,13 @@ void delete_all(User *list, int *tail)
     *tail = 0;
 }
 
-int next_space(char *str) {
+int next_space(char *str)
+{
     int i = 0;
-    while (str[i] != '\0') {
-        if (str[i] == ' ') {
+    while (str[i] != '\0')
+    {
+        if (str[i] == ' ')
+        {
             return i;
         }
         i++;
