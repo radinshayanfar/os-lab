@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdio_ext.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -62,8 +63,8 @@ int main(int argc, char *argv[])
 
     send(sockfd, buf, strlen(buf), 0);
 
-    pthread_create(&thr2, NULL, (void *)chat_write, (void *)sockfd); //thread for writing
-    pthread_create(&thr1, NULL, (void *)chat_read, (void *)sockfd);  //thread for reading
+    pthread_create(&thr2, NULL, (void *)chat_write, (void *) (intptr_t) sockfd); //thread for writing
+    pthread_create(&thr1, NULL, (void *)chat_read, (void *) (intptr_t) sockfd);  //thread for reading
 
     pthread_join(thr2, NULL);
     pthread_join(thr1, NULL);
@@ -101,7 +102,7 @@ void *chat_write(int sockfd)
 
         if (strlen(buffer) - 1 > sizeof(buffer))
         {
-            printf("buffer size full\t enter within %d characters\n", sizeof(buffer));
+            printf("buffer size full\t enter within %ld characters\n", sizeof(buffer));
             bzero(buffer, MAXDATALEN);
             __fpurge(stdin);
         }
