@@ -10,8 +10,8 @@
 #include <string.h>
 #include <pthread.h>
 
-#define READERS 1
-#define COUNT_MAX 50
+#define READERS 5
+#define COUNT_MAX 5
 
 typedef struct {
     int count, read_count;
@@ -40,8 +40,12 @@ int main(int argc, char const *argv[])
         exit(1);
     }
 
-    pthread_mutex_init(&(sh_at->mutex), NULL);
-    pthread_mutex_init(&(sh_at->rw_mutex), NULL);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+
+    pthread_mutex_init(&(sh_at->mutex), &attr);
+    pthread_mutex_init(&(sh_at->rw_mutex), &attr);
 
     if (shmdt(sh_at) == -1) {
         perror("shmdt");
@@ -115,7 +119,12 @@ void reader() {
             pthread_mutex_unlock(&(shared->rw_mutex));
         }
         pthread_mutex_unlock(&(shared->mutex));
-        // sleep(0.1);
+        sleep(0.1);
+    }
+
+    if (shmdt(shared) == -1) {
+        perror("shmdt");
+        exit(1);
     }
 }
 
@@ -138,7 +147,7 @@ void writer() {
         }
 
         pthread_mutex_unlock(&(shared->rw_mutex));
-        // sleep(0.1);
+        sleep(0.05);
     }
 
     if (shmdt(shared) == -1) {
