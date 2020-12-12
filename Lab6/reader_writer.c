@@ -115,7 +115,7 @@ void reader() {
             pthread_mutex_unlock(&(shared->rw_mutex));
         }
         pthread_mutex_unlock(&(shared->mutex));
-        sleep(0.1);
+        // sleep(0.1);
     }
 }
 
@@ -138,7 +138,7 @@ void writer() {
         }
 
         pthread_mutex_unlock(&(shared->rw_mutex));
-        sleep(0.1);
+        // sleep(0.1);
     }
 
     if (shmdt(shared) == -1) {
