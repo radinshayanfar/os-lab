@@ -10,10 +10,10 @@
 #include <signal.h>
 
 #define BACKLOG 100    // connections in the queue
-#define MAXDATALEN 256 //max size of messages to be sent
-#define MAXUSER 20     //max size of messages to be sent
-#define MAXGROUP 10    //max size of messages to be sent
-#define PORT 3232      //default port number
+#define MAXDATALEN 256 // max size of messages to be sent
+#define MAXUSER 20     // max number of users
+#define MAXGROUP 10    // max number of groups
+#define PORT 3232      // default port number
 
 typedef struct
 {
