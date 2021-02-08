@@ -43,17 +43,17 @@ Supported commands (`<group-id>`s are numbers between [0, `MAXGROUP`) interval):
 
 ### 6.1. [The First Readers-Writers Problem (using fork() and shared memory)](https://github.com/radinshayanfar/os-lab/tree/master/Lab6)
 
-To run the program, execute `make run_reader_writer`. It'll be create 1 instance of writer and `READERS` number of reader(s). The writer increments `count` variable by one on each iteration up to `COUNT_MAX` times.
+To run the program, execute `make run_reader_writer`. It'll be creating 1 instance of writer and `READERS` number of reader(s). The writer increments `count` variable by one on each iteration up to `COUNT_MAX` times.
 
 ### 6.2. [The Dining-Philosophers Problem (using Pthread threads)](https://github.com/radinshayanfar/os-lab/tree/master/Lab6)
 
-To run the program, execute `make run_dining_philosophers`. It'll be create 5 instances of philosophers and each one tries to eat `EAT_TIMES` times.
+To run the program, execute `make run_dining_philosophers`. It'll be creating 5 instances of philosophers, each one tries to eat `EAT_TIMES` times.
 
 ### 7. [Deadlock: Bankers algorithm](https://github.com/radinshayanfar/os-lab/tree/master/Lab7)
 
-Compile the program with `make banker` and run it using `./banker.out`. Configure number of resources and customers by changing `NUMBER_OF_RESOURCES` and `NUMBER_OF_CUSTOMERS` definitions. Each customer runs for `MAX_CUSTOMER_ITERATION` iterations and requests resources randomly on each iteration from the banker. The banker then decides whether accepting the request or rejecting it (in order to keep the system in a safe state).
+Compile the program with `make banker` and run it using `./banker.out`. Configure number of resources and customers by changing `NUMBER_OF_RESOURCES` and `NUMBER_OF_CUSTOMERS` definitions. Each customer runs for `MAX_CUSTOMER_ITERATION` iterations and requests resources randomly on each iteration from the banker. The banker then decides whether to accept the request or rejecting it (to keep the system in a safe state).
 
-The program reads `Available matrix` from positional arguments and `Max matrix` from `MAX_FILE_NAME` file. For instance the following line initializes code with `Available matrix` = [5 6 6 5 5].
+The program reads `Available matrix` from positional arguments and `Max matrix` from `MAX_FILE_NAME` file. For instance, the following line initializes code with `Available matrix` = [5 6 6 5 5].
 
 ```bash
 ./banker.out 5 6 6 5 5
